@@ -34,6 +34,7 @@ class GUILogger:
     def flush(self):
         pass
 
+# Use CPU at InuLab
 def get_device(requested_device):
     if torch.cuda.is_available() and 'cuda' in requested_device:
         return requested_device
@@ -54,7 +55,8 @@ def main(args, update_output, stop_training):
     # create environments
     env, train_envs, test_envs = make_aigc_env(args_obj.training_num, args_obj.test_num)
     args_obj.state_shape = env.observation_space.shape[0]
-    args_obj.action_shape = env.action_space.n
+    # args_obj.action_shape = env.action_space.n
+    args_obj.action_shape = env.action_space.shape[0]
     args_obj.max_action = 1.
 
     args_obj.exploration_noise = args_obj.exploration_noise * args_obj.max_action
@@ -175,13 +177,36 @@ def main(args, update_output, stop_training):
     print("Training finished.")
 
     # Watch the performance
+    # if args_obj.watch:
+    #     policy.eval()
+    #     collector = Collector(policy, env)
+    #     result = collector.collect(n_episode=1)
+    #     print(result)
+    #     rews, lens = result["rews"], result["lens"]
+    #     print(f"Final reward: {rews.mean()}, length: {lens.mean()}")
     if args_obj.watch:
         policy.eval()
-        collector = Collector(policy, env)
-        result = collector.collect(n_episode=1)
-        print(result)
-        rews, lens = result["rews"], result["lens"]
-        print(f"Final reward: {rews.mean()}, length: {lens.mean()}")
+        obs, _ = env.reset()
+        done = False
+        total_reward = 0
+        step = 0
+
+        while not done:
+            action = policy.forward(obs).act[0]  # deterministic by default
+            obs, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
+            total_reward += reward
+
+            print(f"Step {step + 1}:")
+            print(f"  Chosen action (channel): {action}")
+            if 'sub_expert_action' in info:
+                print(f"  Sub-expert action (e.g., power allocation): {info['sub_expert_action']}")
+            if 'expert_action' in info:
+                print(f"  Expert action: {info['expert_action']}")
+            print(f"  Reward: {reward:.3f}")
+            step += 1
+
+        print(f"\nFinal reward: {total_reward:.3f}, length: {step}")
 
 
 
