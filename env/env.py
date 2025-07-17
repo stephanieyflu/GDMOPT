@@ -56,6 +56,30 @@ class AIGCEnv(gym.Env):
         # Calculate reward based on last state and action taken
         reward, expert_action, sub_expert_action, real_action = CompUtility(self.channel_gains, action)
 
+        print("real_action:", real_action)
+
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        def plot_action_distributions(real_action, expert_action, step=0):
+            channels = np.arange(1, len(real_action) + 1)
+
+            plt.figure(figsize=(10, 6))
+            plt.bar(channels - 0.2, expert_action, width=0.4, label='Expert Action (Water-filling)', alpha=0.7)
+            plt.bar(channels + 0.2, real_action, width=0.4, label='Agent Real Action', alpha=0.7)
+
+            plt.xlabel('Channel Index')
+            plt.ylabel('Normalized Power Allocation')
+            plt.title(f'Power Allocation Comparison at Step {step}')
+            plt.xticks(channels)
+            plt.legend()
+            plt.grid(True)
+            plt.show()
+
+        # Example usage:
+        # Assuming you have numpy arrays real_action and expert_action from your CompUtility output
+        plot_action_distributions(real_action, expert_action, step=1)
+
         self._laststate[-1] = reward
         self._laststate[0:-1] = self.channel_gains * real_action
         # self._laststate[0:-1] = self.channel_gains * real_action

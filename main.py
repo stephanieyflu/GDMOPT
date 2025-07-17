@@ -41,10 +41,10 @@ def get_args():
     parser.add_argument('--log-prefix', type=str, default='default')
     parser.add_argument('--render', type=float, default=0.1)
     parser.add_argument('--rew-norm', type=int, default=0)
-    # parser.add_argument(
-    #     '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument(
-        '--device', type=str, default='cuda:0')
+        '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
+    # parser.add_argument(
+    #     '--device', type=str, default='cuda:0')
     parser.add_argument('--resume-path', type=str, default=None)
     parser.add_argument('--watch', action='store_true', default=False)
     parser.add_argument('--lr-decay', action='store_true', default=False)
@@ -198,8 +198,23 @@ def main(args=get_args()):
     # python main.py --watch --resume-path log/default/diffusion/Jul10-142653/policy.pth
     if __name__ == '__main__':
         policy.eval()
-        collector = Collector(policy, env)
-        result = collector.collect(n_episode=1) #, render=args.render
+        # collector = Collector(policy, env)
+        env, train_envs, test_envs = make_aigc_env(test_num=10)
+        collector = Collector(policy, test_envs)
+        result = collector.collect(n_episode=10) #, render=args.render
+        # Access and print collected trajectories
+        for i in range(len(collector.buffer)):
+            trajectory = collector.buffer[i]
+            print(f"\nTrajectory {i}:")
+            print(trajectory)
+            # for j in range(len(trajectory.obs)):
+            #     transition = trajectory[j]
+            #     print(f"Step {j}:")
+            #     print(f"  Obs:     {transition.obs}")
+            #     print(f"  Action:  {transition.act}")
+            #     print(f"  Reward:  {transition.rew}")
+            #     print(f"  Done:    {transition.done}")
+
         print(result)
         rews, lens = result["rews"], result["lens"]
         print(f"Final reward: {rews.mean()}, length: {lens.mean()}")
