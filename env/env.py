@@ -75,15 +75,16 @@ class AIGCEnv(gym.Env):
 
 def make_aigc_env(training_num=0, test_num=0):
     env = AIGCEnv()
-    env.seed(0)
+    test_seed = 0
+    env.seed(test_seed)
 
     train_envs, test_envs = None, None
     if training_num:
         train_envs = DummyVectorEnv([lambda: AIGCEnv() for _ in range(training_num)])
-        train_envs.seed(0)
+        train_envs.seed(test_seed)
 
     if test_num:
         test_envs = DummyVectorEnv([lambda: AIGCEnv() for _ in range(test_num)])
-        test_envs.seed(0)
+        test_envs.seed(test_seed)
 
     return env, train_envs, test_envs
