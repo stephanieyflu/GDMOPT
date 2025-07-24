@@ -100,6 +100,8 @@ class PortfolioEnv(gym.Env):
             "sub_expert_action": sub_expert_action,
             "real_action": real_action
         }
+
+        print(f'#-------- INFO --------# {info}')
         return self.state, reward, self.done, info
 
     def seed(self, seed=None):
