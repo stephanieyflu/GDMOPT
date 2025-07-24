@@ -13,6 +13,8 @@ class PortfolioEnv(gym.Env):
         reward_method: str = 'sharpe',
         risk_aversion: float = 0.1,
         max_episode_steps: int = None,
+        start_idx: int = 0,   # NEW: episode start index in price series
+        episode_length: int = None,  # NEW: episode length override
     ):
         """
         A financial portfolio optimization environment.
@@ -22,6 +24,8 @@ class PortfolioEnv(gym.Env):
             reward_method (str): Reward calculation method. Options: 'sharpe', 'log', 'excess'.
             risk_aversion (float): Weight on risk penalty.
             max_episode_steps (int): Optional cap on episode length.
+            start_idx (int): Starting timestep index in price_series for this episode.
+            episode_length (int): Episode length override; if None uses max_episode_steps or remaining data.
         """
         super().__init__()
         self.price_series = price_series
@@ -30,7 +34,9 @@ class PortfolioEnv(gym.Env):
 
         self.reward_method = reward_method
         self.risk_aversion = risk_aversion
-        self.max_episode_steps = max_episode_steps or self.T - 1
+        self.start_idx = start_idx
+        self.max_episode_steps = max_episode_steps or (self.T - start_idx - 1)
+        self.episode_length = episode_length or self.max_episode_steps
 
         self.action_space = Box(low=0, high=1, shape=(self.n_assets,), dtype=np.float32)
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.n_assets,), dtype=np.float32)
@@ -42,7 +48,7 @@ class PortfolioEnv(gym.Env):
         if seed is not None:
             self.seed(seed)
 
-        self.current_step = 1
+        self.current_step = self.start_idx + 1  # current_step is the index in price_series
         self.done = False
         self.portfolio_value = 1.0
         self.history_returns = []
@@ -86,7 +92,11 @@ class PortfolioEnv(gym.Env):
         self.history_returns.append(returns)
 
         self.current_step += 1
-        if self.current_step >= self.T or self.current_step >= self.max_episode_steps:
+
+        # Episode termination conditions:
+        # 1) Exceeded price_series length
+        # 2) Reached episode_length from start_idx
+        if (self.current_step >= self.T) or (self.current_step >= self.start_idx + self.episode_length):
             self.done = True
             next_state = np.zeros(self.n_assets)
         else:
@@ -101,6 +111,7 @@ class PortfolioEnv(gym.Env):
             "real_action": real_action
         }
 
+        # Optional debug print; you can comment this out later
         print(f'#-------- INFO --------# {info}')
         return self.state, reward, self.done, info
 
@@ -109,13 +120,33 @@ class PortfolioEnv(gym.Env):
         np.random.seed(seed)
 
 
-def make_portfolio_env(prices: np.ndarray, training_num: int = 0, test_num: int = 0, reward_method: str = 'sharpe'):
-    """Creates single, training, and test environments."""
-    def get_env():
-        return PortfolioEnv(prices, reward_method=reward_method)
+def make_portfolio_env(prices: np.ndarray,
+                       training_num: int = 0,
+                       test_num: int = 0,
+                       reward_method: str = 'sharpe',
+                       episode_length: int = 100):
+    """Creates single, training, and test environments.
 
-    env = get_env()
-    train_envs = DummyVectorEnv([get_env for _ in range(training_num)]) if training_num else None
-    test_envs = DummyVectorEnv([get_env for _ in range(test_num)]) if test_num else None
+    Each vectorized environment runs episodes from random starting points in the price series,
+    ensuring the agent experiences diverse dynamic market conditions.
+    """
+    def get_env(start_idx=None):
+        if start_idx is None:
+            # Random start, leaving room for episode_length steps
+            max_start = prices.shape[0] - episode_length - 1
+            start_idx_ = np.random.randint(0, max_start) if max_start > 0 else 0
+        else:
+            start_idx_ = start_idx
+        return PortfolioEnv(
+            prices,
+            reward_method=reward_method,
+            max_episode_steps=episode_length,
+            start_idx=start_idx_,
+            episode_length=episode_length
+        )
+
+    env = get_env(start_idx=0)
+    train_envs = DummyVectorEnv([lambda s=i: get_env() for i in range(training_num)]) if training_num else None
+    test_envs = DummyVectorEnv([lambda s=i: get_env() for i in range(test_num)]) if test_num else None
 
     return env, train_envs, test_envs

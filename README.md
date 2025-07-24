@@ -67,6 +67,8 @@ The following package can be installed using pip:
 pip install tianshou==0.4.11
 pip install matplotlib==3.7.3
 pip install scipy==1.10.1
+pip install yfinance==0.2.18
+pip install multitasking==0.0.9
 ```
 
 ## 🏃‍♀️ Run the Program

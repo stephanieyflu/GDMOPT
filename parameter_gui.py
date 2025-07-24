@@ -53,6 +53,7 @@ class GUI:
             'bc_coef': tk.BooleanVar(value=False),
             'prior_alpha': tk.DoubleVar(value=0.4),
             'prior_beta': tk.DoubleVar(value=0.4),
+            'use_yfinance': tk.BooleanVar(value=False),
         }
 
         self.advanced_variables = {

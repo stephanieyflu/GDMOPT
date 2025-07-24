@@ -41,8 +41,24 @@ def get_device(requested_device):
     print(f"CUDA is not available. Using CPU instead of {requested_device}")
     return 'cpu'
 
-def load_price_data(path=None, T=200, N=5):
+import yfinance as yf
+
+def load_price_data(path=None, T=200, N=5, use_yfinance=False, tickers=None):
     """Load or simulate price data."""
+    if use_yfinance:
+        if tickers is None:
+            tickers = ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'TSLA']
+        df = yf.download(tickers, period="1y")['Adj Close'].dropna()
+        prices = df.values
+        if prices.shape[0] > T:
+            prices = prices[-T:]
+        # If less than N tickers returned, pad with last column or truncate
+        if prices.shape[1] < N:
+            last_col = prices[:, -1].reshape(-1,1)
+            prices = np.hstack([prices] + [last_col]*(N - prices.shape[1]))
+        elif prices.shape[1] > N:
+            prices = prices[:, :N]
+        return prices
     if path and os.path.exists(path):
         return np.loadtxt(path, delimiter=',')  # shape: (T, N)
     # Simulate random walk price data if path not provided
@@ -59,8 +75,15 @@ def main(args, update_output, stop_training):
     args_obj = SimpleNamespace(**args)
     args_obj.device = get_device(args_obj.device)
 
+    # Default tickers
+    tickers = getattr(args_obj, 'tickers', ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'TSLA'])
+
     # Load prices and pass to environment
-    prices = load_price_data(getattr(args_obj, "price_path", None))
+    prices = load_price_data(
+        path=getattr(args_obj, "price_path", None),
+        use_yfinance=getattr(args_obj, "use_yfinance", False),
+        tickers=tickers
+    )
     env, train_envs, test_envs = make_portfolio_env(
         prices=prices,
         training_num=args_obj.training_num,
