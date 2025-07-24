@@ -124,7 +124,7 @@ class GUI:
         self.stop_training_flag.clear()
 
         def run_training():
-            from main import main
+            from main_terminal import main
             main(args, self.update_output, self.should_stop_training)
 
         self.training_thread = threading.Thread(target=run_training)

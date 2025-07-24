@@ -1,77 +1,67 @@
 import numpy as np
-import torch
-from scipy.stats import nakagami
-from scipy.special import gammainc
-import math
-from scipy.io import savemat
-import os
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+def CompUtility(price_relatives, action, total_weight=1.0, method='sharpe',
+                past_returns=None, risk_aversion=0.1):
+    """
+    Compute reward and expert actions for portfolio optimization.
 
-def rayleigh_channel_gain(ex, sta):
-    num_samples = 1
-    gain = np.random.normal(ex, sta, num_samples)
-    # Square the absolute value to get Rayleigh-distributed gains
-    gain = np.abs(gain) ** 2
-    return gain
+    Args:
+        price_relatives (np.ndarray): Array of shape (N,) representing price_relatives (i.e., current_price / prev_price).
+        action (np.ndarray): Array of shape (N,) representing the agent's raw action (unconstrained weights).
+        total_weight (float): Total allocation weight. Defaults to 1.0.
+        method (str): Reward strategy - one of {'log', 'excess', 'sharpe'}.
+        past_returns (np.ndarray): Optional (T, N) array of historical price relatives.
+        risk_aversion (float): Penalization factor for volatility in 'sharpe' reward.
 
-# Function to implement water filling algorithm for power allocation
-def water(s, total_power):
-    a = total_power
-    # Define the channel gain and noise level
-    g_n = s
-    N_0 = 1  # Assuming a fixed noise-level of 1 for all transmissions, this can be changed based on your requirement
+    Returns:
+        reward (float): Scalar reward for the given action.
+        expert_action (np.ndarray): Equal-weight baseline portfolio.
+        sub_expert_action (np.ndarray): Noisy version of expert action.
+        real_action (np.ndarray): Final normalized portfolio weights derived from action input.
+    """
 
-    # Initialize the upper and lower bounds for the bisection search
-    L = 0
-    U = a + N_0 * np.sum(1 / (g_n + 1e-6))  # Initial guess for upper bound
+    # Step 1: Normalize the agent's action into valid portfolio weights
+    action = np.clip(action, 0, 1)
+    sum_action = np.sum(action)
+    if sum_action < 1e-8:
+        weights = np.ones_like(action) / len(action)  # fallback to equal weight
+    else:
+        weights = action / sum_action
+    weights *= total_weight
 
-    # Define the precision for the bisection search
-    precision = 1e-6
+    # Step 2: Compute the portfolio return
+    price_relatives = np.clip(price_relatives, 1e-6, None)  # avoid division by zero or log(0)
+    portfolio_return = np.dot(weights, price_relatives)
 
-    # Perform the bisection search for the power level
-    while U - L > precision:
-        alpha_bar = (L + U) / 2  # Set the current level to be in the middle of bounds
-        p_n = np.maximum(alpha_bar - N_0 / (g_n + 1e-6), 0)  # Calculate the power allocation
-        P = np.sum(p_n)  # Calculate the total power
+    # Step 3: Define expert and sub-expert actions
+    N = len(price_relatives)
+    expert_action = np.ones(N) / N
+    sub_expert_action = expert_action + np.random.normal(0, 0.01, N)
+    sub_expert_action = np.clip(sub_expert_action, 0, 1)
+    sub_expert_action /= np.sum(sub_expert_action)
 
-        # Check whether the power budget is under or over-utilized
-        if P > a:  # If the power budget is over-utilized
-            U = alpha_bar  # Move the upper bound to the current power level
-        else:  # If the power level is below the power budget
-            L = alpha_bar  # Move the lower bound up
+    # Step 4: Compute reward based on specified method
+    if method == 'log':
+        reward = np.log1p(portfolio_return - 1)  # log(portfolio_return)
 
-    # Calculate the final power allocation
-    p_n_final = np.maximum(alpha_bar - N_0 / (g_n + 1e-6), 0)
+    elif method == 'excess':
+        benchmark_return = np.mean(price_relatives)
+        reward = np.log1p(portfolio_return - 1) - np.log1p(benchmark_return - 1)
 
-    # Calculate the data rate for each channel
-    SNR = g_n * p_n_final / N_0  # Calculate the SNR
-    data_rate = np.log2(1 + SNR)  # Calculate the data rate
-    sumdata_rate = np.sum(data_rate)
-    # print('p_n_final', p_n_final)
-    # print('data_rate', sumdata_rate)
-    expert = p_n_final / total_power
-    subexpert = p_n_final / total_power + np.random.normal(0, 0.1, len(p_n_final))
-    return expert, sumdata_rate, subexpert
+    elif method == 'sharpe':
+        expected_log_return = np.log1p(portfolio_return - 1)
 
-# Function to compute utility (reward) for the given state and action
-def CompUtility(State, Aution):
-    actions = torch.from_numpy(np.array(Aution)).float()
-    actions = torch.abs(actions)
-    # actions = torch.sigmoid(actions)
-    Aution = actions.numpy()
-    total_power = 3
-    normalized_weights = Aution / np.sum(Aution)
-    a = normalized_weights * total_power
+        if past_returns is not None and len(past_returns) > 1:
+            past_returns = np.clip(past_returns, 1e-6, None)
+            past_portfolio_returns = past_returns @ weights
+            log_returns = np.log1p(past_portfolio_returns - 1)
+            volatility = np.std(log_returns)
+        else:
+            volatility = 0.0
 
-    g_n = State
-    SNR = g_n * a
+        reward = expected_log_return - risk_aversion * volatility
 
-    data_rate = np.log2(1 + SNR)
+    else:
+        raise ValueError(f"Unknown reward method: '{method}'. Choose from ['log', 'excess', 'sharpe'].")
 
-    expert_action, sumdata_rate, subopt_expert_action = water(g_n, total_power)
-
-    reward = np.sum(data_rate) - sumdata_rate
-    # reward = np.sum(data_rate) - sumdata_rate
-
-    return reward, expert_action, subopt_expert_action, Aution
+    return reward, expert_action, sub_expert_action, weights
