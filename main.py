@@ -43,6 +43,28 @@ def get_device(requested_device):
 
 import yfinance as yf
 
+def generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=252, N=5):
+    """
+    Generate realistic synthetic price series using Geometric Brownian Motion (GBM).
+
+    Args:
+        S0 (float): Initial price
+        mu (float): Expected return
+        sigma (float): Volatility
+        T (int): Number of timesteps
+        N (int): Number of assets
+
+    Returns:
+        np.ndarray of shape (T, N)
+    """
+    dt = 1 / 252  # daily steps
+    prices = np.zeros((T, N))
+    prices[0] = S0
+    for t in range(1, T):
+        rand = np.random.randn(N)
+        prices[t] = prices[t - 1] * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * rand)
+    return prices
+
 def load_price_data(path=None, T=200, N=5, use_yfinance=False, tickers=None):
     """Load or simulate price data."""
     if use_yfinance:
@@ -62,7 +84,7 @@ def load_price_data(path=None, T=200, N=5, use_yfinance=False, tickers=None):
     if path and os.path.exists(path):
         return np.loadtxt(path, delimiter=',')  # shape: (T, N)
     # Simulate random walk price data if path not provided
-    prices = np.cumsum(np.random.randn(T, N) * 2 + 100, axis=0)
+    prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=500, N=5)
     return prices
 
 def main(args, update_output, stop_training):

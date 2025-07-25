@@ -2,6 +2,7 @@ import gym
 from gym.spaces import Box
 import numpy as np
 from tianshou.env import DummyVectorEnv
+import pandas as pd
 
 from .utility import CompUtility  # Assumes this is a reward-calculating function
 
@@ -15,6 +16,7 @@ class PortfolioEnv(gym.Env):
         max_episode_steps: int = None,
         start_idx: int = 0,   # NEW: episode start index in price series
         episode_length: int = None,  # NEW: episode length override
+        log_id: str = None
     ):
         """
         A financial portfolio optimization environment.
@@ -42,11 +44,15 @@ class PortfolioEnv(gym.Env):
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.n_assets,), dtype=np.float32)
 
         self._seed = None
+
+        self.log_id = log_id # NEW
         self.reset()
 
     def reset(self, seed=None, options=None):
         if seed is not None:
             self.seed(seed)
+
+        self.episode_logs = []  # For saving info per timestep
 
         self.current_step = self.start_idx + 1  # current_step is the index in price_series
         self.done = False
@@ -71,7 +77,15 @@ class PortfolioEnv(gym.Env):
         else:
             action = np.ones_like(action) / self.n_assets  # fallback to uniform
 
+        prev_prices = self.price_series[self.current_step - 1]
+        curr_prices = self.price_series[self.current_step]
         returns = self._get_returns(self.current_step)
+
+        # DEBUG: Print price info
+        print(f'\n#------ TIME STEP {self.current_step} ------#')
+        print(f'Previous Prices: {prev_prices}')
+        print(f'Current Prices:  {curr_prices}')
+        print(f'Returns:         {returns}')
 
         past_returns = None
         if self.reward_method == 'sharpe' and len(self.history_returns) >= 2:
@@ -91,6 +105,19 @@ class PortfolioEnv(gym.Env):
         self.portfolio_value *= (1 + portfolio_return)
         self.history_returns.append(returns)
 
+        self.episode_logs.append({
+            "step": self.current_step,
+            "portfolio_value": self.portfolio_value,
+            "prev_prices": prev_prices.tolist(),
+            "curr_prices": curr_prices.tolist(),
+            "returns": returns.tolist(),
+            "action": action.tolist(),
+            "expert_action": expert_action.tolist(),
+            "sub_expert_action": sub_expert_action.tolist(),
+            "real_action": real_action.tolist(),
+            "reward": reward
+        })
+
         self.current_step += 1
 
         # Episode termination conditions:
@@ -98,6 +125,12 @@ class PortfolioEnv(gym.Env):
         # 2) Reached episode_length from start_idx
         if (self.current_step >= self.T) or (self.current_step >= self.start_idx + self.episode_length):
             self.done = True
+
+            df = pd.DataFrame(self.episode_logs)
+            log_filename = f"episode_log_{self.log_id or self.start_idx}.csv"
+            log_path = rf"C:\Users\inula\OneDrive\ドキュメント\GitHub\GDMOPT\log\data\{log_filename}"
+            df.to_csv(log_path, index=False)
+
             next_state = np.zeros(self.n_assets)
         else:
             next_state = self._get_returns(self.current_step)
@@ -130,6 +163,7 @@ def make_portfolio_env(prices: np.ndarray,
     Each vectorized environment runs episodes from random starting points in the price series,
     ensuring the agent experiences diverse dynamic market conditions.
     """
+    from datetime import datetime
     def get_env(start_idx=None):
         if start_idx is None:
             # Random start, leaving room for episode_length steps
@@ -142,7 +176,8 @@ def make_portfolio_env(prices: np.ndarray,
             reward_method=reward_method,
             max_episode_steps=episode_length,
             start_idx=start_idx_,
-            episode_length=episode_length
+            episode_length=episode_length,
+            log_id=f"epoch_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         )
 
     env = get_env(start_idx=0)
