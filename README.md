@@ -1,10 +1,8 @@
 # 📈 Portfolio Optimization with Generative Diffusion Models
 
-This repository contains the code and experiments from my Summer 2025 research project at the University of Osaka’s Inuiguchi Lab, as part of the Frontier MiniLab Program. The work explores the application of **generative diffusion models (GDMs)** to **portfolio optimization** — a high-dimensional, constrained, and dynamic decision problem central to financial engineering.
+This repository contains the code from my Summer 2025 research project at the University of Osaka’s Inuiguchi Lab, as part of the FrontierLab Mini Program. The work explores the application of **generative diffusion models (GDMs)** to **portfolio optimization** - a high-dimensional, constrained, and dynamic decision problem central to financial engineering.
 
 > ✅ Inspired by techniques originally developed for wireless communication networks (Du et al., 2024), we adapt a generative modeling + deep reinforcement learning (DRL) framework to financial markets.
-
----
 
 ## 🧠 Core Idea
 
@@ -17,8 +15,6 @@ Traditional portfolio optimization methods like mean-variance optimization often
 - A data-driven way to generate portfolio allocations from return/covariance estimates
 - Implicit learning of constraints and market structure
 - Strong generalization in non-convex, multi-modal optimization problems
-
----
 
 ## 🧪 Project Highlights
 
@@ -37,69 +33,39 @@ Traditional portfolio optimization methods like mean-variance optimization often
 - Evaluation network for computing utility of generated actions
 - Expert comparison using classical mean-variance theory
 
----
-
 ## 📁 Repository Structure
 
 ```bash
 .
-├── env/                # Financial simulation environment
 ├── diffusion/          # Generative model implementation
-├── experiments/        # Scripts for training and evaluation
 ├── data/               # (Optional) Historical asset price datasets
+├── env/                # Financial simulation environment
+├── log/                # Code logs for training and evaluation runs
+├── policy/             # 
 ├── notebooks/          # Visualizations and exploratory analysis
-├── utils/              # Helper functions (metrics, plotting, etc.)
+├── Software/           # 
+├── static/             # 
 ├── main.py             # Entrypoint for training/inference
+├── parameter_gui.py    # 
 ├── requirements.txt
 └── README.md
 ````
-
----
 
 ## 📈 Results
 
 Key experiments included:
 
-* Comparing learned vs. expert Sharpe ratios
+* Comparing learned vs. 'expert' Sharpe ratios
 * Analyzing action quality under different levels of noise/volatility
 * Performance under cardinality and sector constraints
 
-<p align="center">
-  <img src="notebooks/example_plot.png" width="500"/>
-</p>
-
----
-
 ## 🏁 Getting Started
 
-### 1. Clone the repo
-
-```bash
-git clone https://github.com/steph-lu/generative-portfolio-optimization.git
-cd generative-portfolio-optimization
-```
-
-### 2. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Run a training script
-
-```bash
-python main.py --env financial --mode train
-```
-
-You can modify hyperparameters and environment settings via command-line flags or the config files in `experiments/`.
-
----
+See original GitHub repository [here](https://github.com/HongyangDu/GDMOPT).
 
 ## 📚 Reference
 
 * Du, Y., Zhou, D., Liu, X., & Zhang, R. (2024). *Generative Diffusion Models Meet Deep Reinforcement Learning for Network Optimization*. [arXiv](https://arxiv.org/abs/2402.00000)
-
----
 
 ## 📌 Acknowledgements
 
