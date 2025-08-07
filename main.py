@@ -22,6 +22,7 @@ import warnings
 import sys
 from types import SimpleNamespace
 import traceback
+# import yfinance as yf
 
 warnings.filterwarnings('ignore')
 
@@ -40,8 +41,6 @@ def get_device(requested_device):
         return requested_device
     print(f"CUDA is not available. Using CPU instead of {requested_device}")
     return 'cpu'
-
-import yfinance as yf
 
 def generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=252, N=5):
     """

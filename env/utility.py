@@ -1,15 +1,29 @@
 import numpy as np
 import cvxpy as cp
-
 def mean_variance_optimizer(mu, cov, allow_short=False, risk_aversion=1.0):
     n = len(mu)
+
+    # Ensure symmetry
+    cov = (cov + cov.T) / 2
+
+    # Ensure PSD by shifting
+    eigvals = np.linalg.eigvalsh(cov)
+    min_eig = np.min(eigvals)
+    if min_eig < 0:
+        cov += np.eye(n) * (-min_eig + 1e-6)
+
+    # Tell CVXPY to treat cov as PSD
+    cov_psd = cp.psd_wrap(cov)
+
     w = cp.Variable(n)
-    obj = cp.Maximize(mu @ w - risk_aversion * cp.quad_form(w, cov))
+    objective = cp.Maximize(mu @ w - risk_aversion * cp.quad_form(w, cov_psd))
     constraints = [cp.sum(w) == 1]
     if not allow_short:
         constraints.append(w >= 0)
-    prob = cp.Problem(obj, constraints)
-    prob.solve()
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(verbose=True)
+
     return w.value if w.value is not None else np.ones(n) / n
 
 def black_litterman_prior(mu, cov, P=None, Q=None, tau=0.025):

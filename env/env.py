@@ -17,7 +17,7 @@ class PortfolioEnv(gym.Env):
         start_idx: int = 0,
         episode_length: int = None,
         log_id: str = None,
-        expert_type: str = 'equal',
+        expert_type: str = 'bl',
     ):
         """
         A financial portfolio optimization environment.
@@ -66,10 +66,8 @@ class PortfolioEnv(gym.Env):
         return self.state, {"portfolio_value": self.portfolio_value}
 
     def _get_returns(self, step: int):
-        prev_prices = self.price_series[step - 1]
-        curr_prices = self.price_series[step]
-        returns = (curr_prices - prev_prices) / np.clip(prev_prices, 1e-8, np.inf)
-        return returns
+        # Since price_series is price relatives, returns are price relatives minus 1
+        return self.price_series[step] - 1
 
     def step(self, action: np.ndarray):
         assert not self.done, "Episode has terminated"
@@ -146,7 +144,7 @@ class PortfolioEnv(gym.Env):
 
             df = pd.DataFrame(self.episode_logs)
             log_filename = f"episode_log_{self.log_id or self.start_idx}.csv"
-            log_path = rf"C:\Users\inula\OneDrive\ドキュメント\GitHub\GDMOPT\log\data\{log_filename}"
+            log_path = rf"C:\Users\steph\OneDrive\Documents\GitHub\GDMOPT\log\data\{log_filename}"
             df.to_csv(log_path, index=False)
 
             next_state = np.zeros(self.n_assets)
@@ -176,32 +174,28 @@ def make_portfolio_env(prices: np.ndarray,
                        reward_method: str = 'sharpe',
                        episode_length: int = 100):
     """
-        Creates single, training, and test environments.
-        Each vectorized environment runs episodes from random starting points in the price series,
-        ensuring the agent experiences diverse dynamic market conditions.
+    Creates portfolio environments using price relatives (ratios) instead of normalized returns.
+
+    Args:
+        prices: np.ndarray of shape (T, N_assets) with raw asset prices (non-negative).
+        training_num: Number of parallel training envs.
+        test_num: Number of parallel test envs.
+        reward_method: Reward calculation method.
+        episode_length: Length of each episode.
     """
 
-    # --- Preprocessing ---
-    # Compute daily returns
-    returns = (prices[1:] - prices[:-1]) / np.clip(prices[:-1], 1e-6, np.inf)
-    # Normalize returns (zero mean, unit variance)
-    norm_returns = (returns - np.mean(returns, axis=0)) / (np.std(returns, axis=0) + 1e-8)
-
-    # Optionally compute rolling mean/cov estimates for use in reward or models
-    # These can be stored externally or inside the environment if needed later
-
-    # --- Use normalized returns as input to the environment ---
-    norm_prices = 1 + norm_returns  # convert back to relative prices
+    # Compute price relatives: ratio of price at t to price at t-1
+    price_relatives = prices[1:] / np.clip(prices[:-1], 1e-8, np.inf)  # shape (T-1, N_assets)
+    # price_relatives are always >= 0 (assuming prices >= 0)
 
     def get_env(start_idx=None):
         if start_idx is None:
-            # Random start, leaving room for episode_length steps
-            max_start = norm_prices.shape[0] - episode_length - 1
+            max_start = price_relatives.shape[0] - episode_length - 1
             start_idx_ = np.random.randint(0, max_start) if max_start > 0 else 0
         else:
             start_idx_ = start_idx
         return PortfolioEnv(
-            norm_prices,
+            price_relatives,
             reward_method=reward_method,
             max_episode_steps=episode_length,
             start_idx=start_idx_,

@@ -63,6 +63,8 @@ Key experiments included:
 
 See original GitHub repository [here](https://github.com/HongyangDu/GDMOPT).
 
+    pip install pandas cvxpy
+
 ## 📚 Reference
 
 * Du, Y., Zhou, D., Liu, X., & Zhang, R. (2024). *Generative Diffusion Models Meet Deep Reinforcement Learning for Network Optimization*. [arXiv](https://arxiv.org/abs/2402.00000)
@@ -70,3 +72,28 @@ See original GitHub repository [here](https://github.com/HongyangDu/GDMOPT).
 ## 📌 Acknowledgements
 
 Thanks to Professor **Naoki Hayashi** and the **Inuiguchi Lab** for their guidance and mentorship. This project was conducted as part of the **Frontier MiniLab Program (Summer 2025)**.
+
+
+default\diffusion\Aug08-020523
+expert_type = equal
+reward_method = sharpe
+prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
+
+default\diffusion\Aug08-020135
+expert_type = mv
+reward_method = sharpe
+prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
+
+default\diffusion\Aug08-080613
+expert_type = bl
+reward_method = sharpe
+prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
+
+expert_type = equal
+reward_method = sharpe
+
+expert_type = mv
+reward_method = sharpe
+
+expert_type = bl
+reward_method = sharpe
