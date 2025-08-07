@@ -1,56 +1,87 @@
 import numpy as np
+import cvxpy as cp
+
+def mean_variance_optimizer(mu, cov, allow_short=False, risk_aversion=1.0):
+    n = len(mu)
+    w = cp.Variable(n)
+    obj = cp.Maximize(mu @ w - risk_aversion * cp.quad_form(w, cov))
+    constraints = [cp.sum(w) == 1]
+    if not allow_short:
+        constraints.append(w >= 0)
+    prob = cp.Problem(obj, constraints)
+    prob.solve()
+    return w.value if w.value is not None else np.ones(n) / n
+
+def black_litterman_prior(mu, cov, P=None, Q=None, tau=0.025):
+    """
+        Simple BL using the tau*Sigma shrinkage, no view uncertainty for now.
+    """
+    if P is None or Q is None:
+        return mu  # No views -> revert to prior mean
+
+    omega = np.diag(np.diag(P @ (tau * cov) @ P.T))
+    inv_term = np.linalg.inv(tau * cov) + P.T @ np.linalg.inv(omega) @ P
+    adjusted_mu = np.linalg.inv(inv_term) @ (
+        np.linalg.inv(tau * cov) @ mu + P.T @ np.linalg.inv(omega) @ Q
+    )
+    return adjusted_mu
+
+def top_k(weights, k=10):
+    top_indices = np.argsort(weights)[-k:]
+    sparse_weights = np.zeros_like(weights)
+    sparse_weights[top_indices] = weights[top_indices]
+    return sparse_weights / sparse_weights.sum()
 
 def CompUtility(price_relatives, action, total_weight=1.0, method='sharpe',
-                past_returns=None, risk_aversion=0.1):
+                past_returns=None, risk_aversion=0.1, expert_type='equal', cov_estimator='empirical'):
     """
-    Compute reward and expert actions for portfolio optimization.
-
-    Args:
-        price_relatives (np.ndarray): Array of shape (N,) representing price_relatives (i.e., current_price / prev_price).
-        action (np.ndarray): Array of shape (N,) representing the agent's raw action (unconstrained weights).
-        total_weight (float): Total allocation weight. Defaults to 1.0.
-        method (str): Reward strategy - one of {'log', 'excess', 'sharpe'}.
-        past_returns (np.ndarray): Optional (T, N) array of historical price relatives.
-        risk_aversion (float): Penalization factor for volatility in 'sharpe' reward.
-
-    Returns:
-        reward (float): Scalar reward for the given action.
-        expert_action (np.ndarray): Equal-weight baseline portfolio.
-        sub_expert_action (np.ndarray): Noisy version of expert action.
-        real_action (np.ndarray): Final normalized portfolio weights derived from action input.
+        Compute reward and expert actions for portfolio optimization.
     """
 
-    # Step 1: Normalize the agent's action into valid portfolio weights
     action = np.clip(action, 0, 1)
     sum_action = np.sum(action)
-    if sum_action < 1e-8:
-        weights = np.ones_like(action) / len(action)  # fallback to equal weight
-    else:
-        weights = action / sum_action
+    weights = action / sum_action if sum_action > 1e-8 else np.ones_like(action) / len(action)
     weights *= total_weight
 
-    # Step 2: Compute the portfolio return
-    price_relatives = np.clip(price_relatives, 1e-6, None)  # avoid division by zero or log(0)
+    price_relatives = np.clip(price_relatives, 1e-6, None)
     portfolio_return = np.dot(weights, price_relatives)
 
-    # Step 3: Define expert and sub-expert actions
     N = len(price_relatives)
-    expert_action = np.ones(N) / N
+
+    # Historical returns for expert estimators
+    if past_returns is not None and len(past_returns) >= 2:
+        X = past_returns[-60:]  # use last 60 days
+        mu = np.mean(X - 1, axis=0)  # expected excess returns
+        cov = np.cov((X - 1).T)  # sample covariance
+
+        if expert_type == 'mv':
+            expert_action = mean_variance_optimizer(mu, cov, allow_short=False, risk_aversion=risk_aversion)
+            expert_action = top_k(expert_action, k=10)
+        elif expert_type == 'bl':
+            # simple view: top assets will outperform
+            P = np.eye(N)[np.argsort(mu)[-5:]]  # top 5 views
+            Q = mu[np.argsort(mu)[-5:]] + 0.01  # slight bump
+            bl_mu = black_litterman_prior(mu, cov, P, Q)
+            expert_action = mean_variance_optimizer(bl_mu, cov, allow_short=False, risk_aversion=risk_aversion)
+            expert_action = top_k(expert_action, k=10)
+        else:
+            expert_action = np.ones(N) / N  # default to equal-weight
+            expert_action = top_k(expert_action, k=10)
+    else:
+        expert_action = np.ones(N) / N
+        expert_action = top_k(expert_action, k=10)
+
     sub_expert_action = expert_action + np.random.normal(0, 0.01, N)
     sub_expert_action = np.clip(sub_expert_action, 0, 1)
     sub_expert_action /= np.sum(sub_expert_action)
 
-    # Step 4: Compute reward based on specified method
     if method == 'log':
-        reward = np.log1p(portfolio_return - 1)  # log(portfolio_return)
-
+        reward = np.log1p(portfolio_return - 1)
     elif method == 'excess':
         benchmark_return = np.mean(price_relatives)
         reward = np.log1p(portfolio_return - 1) - np.log1p(benchmark_return - 1)
-
     elif method == 'sharpe':
         expected_log_return = np.log1p(portfolio_return - 1)
-
         if past_returns is not None and len(past_returns) > 1:
             past_returns = np.clip(past_returns, 1e-6, None)
             past_portfolio_returns = past_returns @ weights
@@ -58,10 +89,8 @@ def CompUtility(price_relatives, action, total_weight=1.0, method='sharpe',
             volatility = np.std(log_returns)
         else:
             volatility = 0.0
-
         reward = expected_log_return - risk_aversion * volatility
-
     else:
-        raise ValueError(f"Unknown reward method: '{method}'. Choose from ['log', 'excess', 'sharpe'].")
+        raise ValueError(f"Unknown reward method: '{method}'.")
 
     return reward, expert_action, sub_expert_action, weights

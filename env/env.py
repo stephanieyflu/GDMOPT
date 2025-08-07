@@ -1,10 +1,10 @@
+from datetime import datetime
 import gym
 from gym.spaces import Box
 import numpy as np
-from tianshou.env import DummyVectorEnv
 import pandas as pd
-
-from .utility import CompUtility  # Assumes this is a reward-calculating function
+from tianshou.env import DummyVectorEnv
+from .utility import CompUtility
 
 
 class PortfolioEnv(gym.Env):
@@ -14,9 +14,10 @@ class PortfolioEnv(gym.Env):
         reward_method: str = 'sharpe',
         risk_aversion: float = 0.1,
         max_episode_steps: int = None,
-        start_idx: int = 0,   # NEW: episode start index in price series
-        episode_length: int = None,  # NEW: episode length override
-        log_id: str = None
+        start_idx: int = 0,
+        episode_length: int = None,
+        log_id: str = None,
+        expert_type: str = 'equal',
     ):
         """
         A financial portfolio optimization environment.
@@ -45,7 +46,9 @@ class PortfolioEnv(gym.Env):
 
         self._seed = None
 
-        self.log_id = log_id # NEW
+        self.log_id = log_id
+        self.expert_type = expert_type
+
         self.reset()
 
     def reset(self, seed=None, options=None):
@@ -71,11 +74,25 @@ class PortfolioEnv(gym.Env):
     def step(self, action: np.ndarray):
         assert not self.done, "Episode has terminated"
 
+        def apply_cardinality(weights, k=10):
+            # Zero all but top-k weights
+            top_indices = np.argsort(weights)[-k:]
+            sparse = np.zeros_like(weights)
+            sparse[top_indices] = weights[top_indices]
+            if np.sum(sparse) > 0:
+                sparse /= np.sum(sparse)
+            else:
+                sparse = np.ones_like(weights) / len(weights)
+            return sparse
+
         action = np.clip(action, 0, 1)
         if np.sum(action) > 0:
             action = action / np.sum(action)
         else:
-            action = np.ones_like(action) / self.n_assets  # fallback to uniform
+            action = np.ones_like(action) / self.n_assets  # fallback
+
+        # Apply Top-10 constraint
+        action = apply_cardinality(action, k=10)
 
         prev_prices = self.price_series[self.current_step - 1]
         curr_prices = self.price_series[self.current_step]
@@ -97,7 +114,8 @@ class PortfolioEnv(gym.Env):
             total_weight=1.0,
             method=self.reward_method,
             past_returns=(np.array(self.history_returns) + 1) if past_returns is not None else None,
-            risk_aversion=self.risk_aversion
+            risk_aversion=self.risk_aversion,
+            expert_type=self.expert_type,
         )
 
         # Portfolio value update
@@ -144,7 +162,6 @@ class PortfolioEnv(gym.Env):
             "real_action": real_action
         }
 
-        # Optional debug print; you can comment this out later
         print(f'#-------- INFO --------# {info}')
         return self.state, reward, self.done, info
 
@@ -158,21 +175,33 @@ def make_portfolio_env(prices: np.ndarray,
                        test_num: int = 0,
                        reward_method: str = 'sharpe',
                        episode_length: int = 100):
-    """Creates single, training, and test environments.
-
-    Each vectorized environment runs episodes from random starting points in the price series,
-    ensuring the agent experiences diverse dynamic market conditions.
     """
-    from datetime import datetime
+        Creates single, training, and test environments.
+        Each vectorized environment runs episodes from random starting points in the price series,
+        ensuring the agent experiences diverse dynamic market conditions.
+    """
+
+    # --- Preprocessing ---
+    # Compute daily returns
+    returns = (prices[1:] - prices[:-1]) / np.clip(prices[:-1], 1e-6, np.inf)
+    # Normalize returns (zero mean, unit variance)
+    norm_returns = (returns - np.mean(returns, axis=0)) / (np.std(returns, axis=0) + 1e-8)
+
+    # Optionally compute rolling mean/cov estimates for use in reward or models
+    # These can be stored externally or inside the environment if needed later
+
+    # --- Use normalized returns as input to the environment ---
+    norm_prices = 1 + norm_returns  # convert back to relative prices
+
     def get_env(start_idx=None):
         if start_idx is None:
             # Random start, leaving room for episode_length steps
-            max_start = prices.shape[0] - episode_length - 1
+            max_start = norm_prices.shape[0] - episode_length - 1
             start_idx_ = np.random.randint(0, max_start) if max_start > 0 else 0
         else:
             start_idx_ = start_idx
         return PortfolioEnv(
-            prices,
+            norm_prices,
             reward_method=reward_method,
             max_episode_steps=episode_length,
             start_idx=start_idx_,

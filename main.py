@@ -69,22 +69,21 @@ def load_price_data(path=None, T=200, N=5, use_yfinance=False, tickers=None):
     """Load or simulate price data."""
     if use_yfinance:
         if tickers is None:
-            tickers = ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'TSLA']
-        df = yf.download(tickers, period="1y")['Adj Close'].dropna()
+            # Sample 30 tickers from S&P 500 (hardcoded subset or fetched online)
+            tickers = [
+                'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'JPM', 'V', 'TSLA', 'UNH',
+                'HD', 'BAC', 'MA', 'XOM', 'PFE', 'KO', 'MRK', 'PEP', 'WMT', 'CVX',
+                'ABT', 'TMO', 'CSCO', 'COST', 'DIS', 'INTC', 'LLY', 'QCOM', 'ADBE', 'CRM'
+            ]
+        df = yf.download(tickers, start="2018-01-01", end="2023-12-31")['Adj Close'].dropna()
         prices = df.values
-        if prices.shape[0] > T:
-            prices = prices[-T:]
-        # If less than N tickers returned, pad with last column or truncate
-        if prices.shape[1] < N:
-            last_col = prices[:, -1].reshape(-1,1)
-            prices = np.hstack([prices] + [last_col]*(N - prices.shape[1]))
-        elif prices.shape[1] > N:
-            prices = prices[:, :N]
+        if prices.shape[1] > 30:
+            prices = prices[:, :30]
         return prices
     if path and os.path.exists(path):
         return np.loadtxt(path, delimiter=',')  # shape: (T, N)
     # Simulate random walk price data if path not provided
-    prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=500, N=5)
+    prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
     return prices
 
 def main(args, update_output, stop_training):
