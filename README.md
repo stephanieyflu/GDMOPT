@@ -33,24 +33,6 @@ Traditional portfolio optimization methods like mean-variance optimization often
 - Evaluation network for computing utility of generated actions
 - Expert comparison using classical mean-variance theory
 
-## 📁 Repository Structure
-
-```bash
-.
-├── diffusion/          # Generative model implementation
-├── data/               # (Optional) Historical asset price datasets
-├── env/                # Financial simulation environment
-├── log/                # Code logs for training and evaluation runs
-├── policy/             # 
-├── notebooks/          # Visualizations and exploratory analysis
-├── Software/           # 
-├── static/             # 
-├── main.py             # Entrypoint for training/inference
-├── parameter_gui.py    # 
-├── requirements.txt
-└── README.md
-````
-
 ## 📈 Results
 
 Key experiments included:
@@ -65,41 +47,43 @@ See original GitHub repository [here](https://github.com/HongyangDu/GDMOPT).
 
     pip install pandas cvxpy
 
-## 📚 Reference
+## 📚 References
 
-* Du, Y., Zhou, D., Liu, X., & Zhang, R. (2024). *Generative Diffusion Models Meet Deep Reinforcement Learning for Network Optimization*. [arXiv](https://arxiv.org/abs/2402.00000)
+H. Du, R. Zhang, Y. Liu, J. Wang, Y. Lin, Z. Li, D. Niyato, J. Kang, Z. Xiong, S. Cui, B. Ai, H. Zhou, and D. I. Kim, “Enhancing deep reinforcement learning: A tutorial on generative diffusion models in network optimization,” _IEEE Communications Surveys and Tutorials_, 2024.
+
 
 ## 📌 Acknowledgements
 
 Thanks to Professor **Naoki Hayashi** and the **Inuiguchi Lab** for their guidance and mentorship. This project was conducted as part of the **Frontier MiniLab Program (Summer 2025)**.
 
+## Model Notes
 
-default\diffusion\Aug08-020523
-expert_type = equal
-reward_method = sharpe
-prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
-
-default\diffusion\Aug08-020135
-expert_type = mv
-reward_method = sharpe
-prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
-
-default\diffusion\Aug08-080613
-expert_type = bl
-reward_method = sharpe
-prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
-
-default\diffusion\Aug08-094433
-expert_type = equal
-reward_method = sharpe
-prices.csv
-
-default\diffusion\Aug08-094731
-expert_type = mv
-reward_method = sharpe
-prices.csv
-
-default\diffusion\Aug08-094820
-expert_type = bl
-reward_method = sharpe
-prices.csv
+    default\diffusion\Aug08-020523
+    expert_type = equal
+    reward_method = sharpe
+    prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
+    
+    default\diffusion\Aug08-020135
+    expert_type = mv
+    reward_method = sharpe
+    prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
+    
+    default\diffusion\Aug08-080613
+    expert_type = bl
+    reward_method = sharpe
+    prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
+    
+    default\diffusion\Aug08-094433
+    expert_type = equal
+    reward_method = sharpe
+    prices.csv
+    
+    default\diffusion\Aug08-094731
+    expert_type = mv
+    reward_method = sharpe
+    prices.csv
+    
+    default\diffusion\Aug08-094820
+    expert_type = bl
+    reward_method = sharpe
+    prices.csv
