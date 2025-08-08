@@ -31,15 +31,14 @@ Traditional portfolio optimization methods like mean-variance optimization often
 ### 🧠 Learning Architecture
 - Generative Diffusion Model (GDM) for sampling portfolio weights
 - Evaluation network for computing utility of generated actions
-- Expert comparison using classical mean-variance theory
+- Expert comparison using equal weight, classical mean-variance theory, and the Black-Litterman model
 
 ## 📈 Results
 
 Key experiments included:
 
 * Comparing learned vs. 'expert' Sharpe ratios
-* Analyzing action quality under different levels of noise/volatility
-* Performance under cardinality and sector constraints
+* Performance under cardinality constraints
 
 ## 🏁 Getting Started
 
