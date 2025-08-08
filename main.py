@@ -64,7 +64,7 @@ def generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=252, N=5):
         prices[t] = prices[t - 1] * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * rand)
     return prices
 
-def load_price_data(path=None, T=200, N=5, use_yfinance=False, tickers=None):
+def load_price_data(path='prices.csv', T=200, N=5, use_yfinance=False, tickers=None):
     """Load or simulate price data."""
     if use_yfinance:
         if tickers is None:

@@ -89,11 +89,17 @@ expert_type = bl
 reward_method = sharpe
 prices = generate_gbm_prices(S0=100, mu=0.05, sigma=0.2, T=1000, N=30)
 
+default\diffusion\Aug08-094433
 expert_type = equal
 reward_method = sharpe
+prices.csv
 
+default\diffusion\Aug08-094731
 expert_type = mv
 reward_method = sharpe
+prices.csv
 
+default\diffusion\Aug08-094820
 expert_type = bl
 reward_method = sharpe
+prices.csv

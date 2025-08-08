@@ -144,7 +144,7 @@ class PortfolioEnv(gym.Env):
 
             df = pd.DataFrame(self.episode_logs)
             log_filename = f"episode_log_{self.log_id or self.start_idx}.csv"
-            log_path = rf"C:\Users\steph\OneDrive\Documents\GitHub\GDMOPT\log\data\{log_filename}"
+            log_path = rf"C:\Users\inula\OneDrive\ドキュメント\GitHub\GDMOPT\log\data\{log_filename}"
             df.to_csv(log_path, index=False)
 
             next_state = np.zeros(self.n_assets)
